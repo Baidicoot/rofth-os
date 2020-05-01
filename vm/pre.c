@@ -5,6 +5,108 @@ enum {
     BAD,
 };
 
+typedef struct _MacroMap{
+    struct _MacroMap* next;
+    char* defn;
+    char* macro;
+} MacroMap;
+
+MacroMap* allocMacro(char* defnp, int dlen, char* macrop, int nlen, MacroMap* old) {
+    MacroMap* tmp = malloc(sizeof(MacroMap) + dlen + nlen + 2);
+    char* defn = (char*)(tmp + 1);
+    char* macro = defn + dlen + 1;
+    tmp->defn = defn;
+    tmp->macro = macro;
+    tmp->next = old;
+    memcpy(defn, defnp, dlen);
+    defn[dlen] = 0;
+    memcpy(macro, macrop, nlen);
+    macro[nlen] = 0;
+    return tmp;
+}
+
+void freeMacro(MacroMap* map) {
+    if (map->next != NULL) {
+        freeMacro(map->next);
+    }
+    free(map);
+}
+
+char* indexMacro(char* name, MacroMap* map, int* err) {
+    if (strcmp(name, map->macro) == 0) {
+        return map->defn;
+    } else if (map->next != NULL) {
+        return indexMacro(name, map->next, err);
+    } else {
+        *err = BAD;
+        return NULL;
+    }
+}
+
+void debug_print_MacroMap(MacroMap* map) {
+    printf("Name: \"%s\", Defn: \"%s\"\n", map->macro, map->defn);
+    if (map->next != NULL) {
+        debug_print_MacroMap(map->next);
+    }
+}
+
+MacroMap* macros(char* buf, int* err) {
+    MacroMap* macs = NULL;
+    int i = 0;
+    *err = OK;
+    for (;;) {
+        if (buf[i] == 0) {
+            return macs;
+        } else if (buf[i] == '\n') {
+            i++;
+            if (buf[i] != '#') continue;
+            i++;
+            if (buf[i] != '~') continue;
+            i++;
+            int npos = i;
+            int nlen = 0;
+            for (;!isspace(buf[i]);i++) nlen++;
+            i++;
+            int dpos = i;
+            int dlen = 0;
+            for (;buf[i] != '\n';i++) dlen++;
+            macs = allocMacro(buf + dpos, dlen, buf + npos, nlen, macs);
+        } else {
+            i++;
+        }
+    }
+}
+
+void demacro(char* ibuf, FILE* out, MacroMap* macros, int* err) {
+    *err = OK;
+    int i = 0;
+    for (;;) {
+        if (ibuf[i] == 0) {
+            return;
+        } else if (ibuf[i] == '@') {
+            char macro[256];
+            i++;
+            int mpos = i;
+            int mlen = 0;
+            for (;!isspace(ibuf[i]);i++) {
+                macro[mlen] = ibuf[i];
+                mlen++;
+            }
+            macro[mlen] = 0;
+            char* defn = indexMacro(macro, macros, err);
+            if (*err != OK) {
+                printf("UNDEFINED MACRO \"%s\"\n", macro);
+                return;
+            }
+            int c = 0;
+            for(;defn[c] != 0;c++) putc(defn[c], out);
+        } else {
+            putc(ibuf[i], out);
+            i++;
+        }
+    }
+}
+
 typedef struct _LabelMap{
     struct _LabelMap* next;
     int inspos;
@@ -158,13 +260,40 @@ void delabel(char* in, char* out, LabelMap* labels, int* err) {
     }
 }
 
-void demacro(FILE* in, FILE* out, int* err) {
+void preprocess(FILE* in, FILE* out, int* err) {
     fseek(in, 0, SEEK_END);
     long fsize = ftell(in);
     fseek(in, 0, SEEK_SET);
-    char* ibuf = calloc(1, fsize + 1);
-    fread(ibuf, 1, fsize, in);
+    char* mbuf = calloc(1, fsize + 1);
+    fread(mbuf, 1, fsize, in);
     fclose(in);
+    mbuf[fsize] = 0;
+
+    MacroMap* macs = macros(mbuf, err);
+    if (*err != OK) {
+        printf("FATAL ERROR while counting macros\n");
+        return;
+    }
+
+    if (macs != NULL) {
+        printf("MACROS DETECTED:\n");
+        debug_print_MacroMap(macs);
+    }
+    FILE* tmp = fopen("tmp.dmasm", "w+");
+    demacro(mbuf, tmp, macs, err);
+    if (*err != OK) {
+        printf("FATAL ERROR while replacing macros\n");
+        return;
+    }
+    fclose(tmp);
+
+    tmp = fopen("tmp.dmasm", "r");
+    fseek(tmp, 0, SEEK_END);
+    fsize = ftell(tmp);
+    fseek(tmp, 0, SEEK_SET);
+    char* ibuf = calloc(1, fsize + 1);
+    fread(ibuf, 1, fsize, tmp);
+    fclose(tmp);
     ibuf[fsize] = 0;
 
     char* obuf = calloc(1, fsize + 1);

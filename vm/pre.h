@@ -3,4 +3,4 @@
 #include <stdio.h>
 #include <string.h>
 
-void demacro(FILE* in, FILE* out, int* err);
+void preprocess(FILE* in, FILE* out, int* err);

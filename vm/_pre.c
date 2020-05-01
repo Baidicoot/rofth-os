@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
         FILE* i = fopen(argv[3], "r");
         FILE* o = fopen(argv[2], "w");
         int error = OK;
-        demacro(i, o, &error);
+        preprocess(i, o, &error);
         if (error != OK) {
             printf("errored during compilation with code %i", error);
             return 1;

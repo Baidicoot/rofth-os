@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
         FILE* i = fopen(argv[3], "r");
         FILE* tmp = fopen("tmp.rasm", "w+");
         int error = OK;
-        demacro(i, tmp, &error);
+        preprocess(i, tmp, &error);
         if (error != OK) {
             printf("errored during demacro with code %i", error);
             return 1;
