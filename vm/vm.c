@@ -5,6 +5,9 @@
 
 #define SEG_SIZE 2048
 
+#define READONLY_SIZE 32
+#define READONLY SEG_SIZE - READONLY_SIZE
+
 #define PPT 1024
 #define MAX_PROC 16
 
@@ -26,9 +29,14 @@ pc = *(uint16_t*)(mem + INT_HAND);
 
 #define MEMEXCEPT INT(0, 4)
 
-int isLegal(uint16_t addr, uint8_t prc) {
-    uint32_t legality = *(uint32_t*)(mem + 1026 + 6*prc);
-    return (((legality >> 31) | (legality >> (addr & (SEG_SIZE - 1)))) & 1);
+int isReadable(uint16_t addr, uint8_t prc) {
+    uint32_t legality = *(uint32_t*)(mem + PPT + 2 + 6*prc);
+    return (((legality >> 31) | (legality >> (addr / SEG_SIZE))) & 1);
+}
+
+int isWriteable(uint16_t unaddr, uint16_t addr, uint8_t prc) {
+    uint32_t legality = *(uint32_t*)(mem + PPT + 2 + 6*prc);
+    return ((legality >> 31) | ((legality >> (addr / SEG_SIZE)) & (unaddr < READONLY)) & 1);
 }
 
 /*
@@ -101,7 +109,7 @@ void run() {
     uint16_t* reg16 = reg8;
     uint32_t* reg32 = reg8;
     do {
-        if (isLegal(pc, mem[1120])) {
+        if (isReadable(pc, mem[PRC])) {
             op = mem[pc];
         } else {
             printf("FATAL: INSTRUCTION OVERFLOW\n");
@@ -121,9 +129,9 @@ void run() {
             uint8_t destreg = mem[pc + 2];
             int8_t offset = mem[pc+3];
 
-            uint8_t prc = mem[1120];
+            uint8_t prc = mem[PRC];
             uint16_t addr = OFFSET(prc) + offset + reg16[srcreg];
-            if (isLegal(addr, prc)) {
+            if (isReadable(addr, prc)) {
                 #ifdef DEBUG
                 printf("loaded addr %i into r%i\n", addr, destreg);
                 #endif
@@ -139,9 +147,9 @@ void run() {
             uint8_t destreg = mem[pc + 2];
             int8_t offset = mem[pc+3];
 
-            uint8_t prc = mem[1120];
+            uint8_t prc = mem[PRC];
             uint16_t addr = OFFSET(prc) + offset + reg16[srcreg];
-            if (isLegal(addr, prc)) {
+            if (isReadable(addr, prc)) {
                 reg16[destreg] = *(uint16_t*)(mem + addr);
             } else {
                 MEMEXCEPT
@@ -154,9 +162,9 @@ void run() {
             uint8_t destreg = mem[pc + 2];
             int8_t offset = mem[pc+3];
             
-            uint8_t prc = mem[1120];
+            uint8_t prc = mem[PRC];
             uint16_t addr = OFFSET(prc) + offset + reg16[srcreg];
-            if (isLegal(addr, prc)) {
+            if (isReadable(addr, prc)) {
                 reg32[destreg] = *(uint32_t*)(mem + addr);
             } else {
                 MEMEXCEPT
@@ -169,9 +177,10 @@ void run() {
             uint8_t destreg = mem[pc + 2];
             int8_t offset = mem[pc+3];
             
-            uint8_t prc = mem[1120];
-            uint16_t addr = OFFSET(prc) + offset + reg16[destreg];
-            if (isLegal(addr, prc)) {
+            uint8_t prc = mem[PRC];
+            uint16_t unaddr = offset + reg16[destreg];
+            uint16_t addr = OFFSET(prc) + unaddr;
+            if (isWriteable(unaddr, addr, prc)) {
                 #ifdef DEBUG
                 printf("wrote: %i to: %i\n", reg8[srcreg], addr);
                 #endif
@@ -187,9 +196,10 @@ void run() {
             uint8_t destreg = mem[pc + 2];
             int8_t offset = mem[pc+3];
             
-            uint8_t prc = mem[1120];
-            uint16_t addr = OFFSET(prc) + offset + reg16[destreg];
-            if (isLegal(addr, prc)) {
+            uint8_t prc = mem[PRC];
+            uint16_t unaddr = offset + reg16[destreg];
+            uint16_t addr = OFFSET(prc) + unaddr;
+            if (isWriteable(unaddr, addr, prc)) {
                 *(uint16_t*)(mem + addr) = reg16[srcreg];
             } else {
                 MEMEXCEPT
@@ -202,9 +212,10 @@ void run() {
             uint8_t destreg = mem[pc + 2];
             int8_t offset = mem[pc+3];
             
-            uint8_t prc = mem[1120];
-            uint16_t addr = OFFSET(prc) + offset + reg16[destreg];
-            if (isLegal(addr, prc)) {
+            uint8_t prc = mem[PRC];
+            uint16_t unaddr = offset + reg16[destreg];
+            uint16_t addr = OFFSET(prc) + unaddr;
+            if (isWriteable(unaddr, addr, prc)) {
                 *(uint32_t*)(mem + addr) = reg32[srcreg];
             } else {
                 MEMEXCEPT
@@ -280,11 +291,11 @@ void run() {
             uint8_t destreg = mem[pc+1];
             uint8_t srcreg = mem[pc+2];
             int8_t offset = mem[pc+3];
-            reg16[destreg] = pc + offset + 4;
 
             uint8_t prc = mem[1120];
             uint16_t newpos = reg16[srcreg] - 4;
-            if (isLegal(newpos, prc)) {
+            reg16[destreg] = pc + offset + 4;
+            if (isReadable(newpos, prc)) {
                 pc = newpos;
             } else {
                 MEMEXCEPT
@@ -299,7 +310,7 @@ void run() {
             if (reg16[srcreg1] == reg16[srcreg2]) {
                 uint8_t prc = mem[1120];
                 uint16_t newpos = pc + offset;
-                if (isLegal(newpos, prc)) {
+                if (isReadable(newpos, prc)) {
                     pc = newpos;
                 } else {
                     MEMEXCEPT
@@ -315,7 +326,7 @@ void run() {
             if (reg16[srcreg1] != reg16[srcreg2]) {
                 uint8_t prc = mem[1120];
                 uint16_t newpos = pc + offset;
-                if (isLegal(newpos, prc)) {
+                if (isReadable(newpos, prc)) {
                     pc = newpos;
                     //printf("branched to %i\n", newpos);
                 } else {
@@ -332,7 +343,7 @@ void run() {
             if (reg16[srcreg1] < reg16[srcreg2]) {
                 uint8_t prc = mem[1120];
                 uint16_t newpos = pc + offset;
-                if (isLegal(newpos, prc)) {
+                if (isReadable(newpos, prc)) {
                     pc = newpos;
                 } else {
                     MEMEXCEPT
@@ -348,7 +359,7 @@ void run() {
             if (reg16[srcreg1] > reg16[srcreg2]) {
                 uint8_t prc = mem[1120];
                 uint16_t newpos = pc + offset;
-                if (isLegal(newpos, prc)) {
+                if (isReadable(newpos, prc)) {
                     pc = newpos;
                 } else {
                     MEMEXCEPT
