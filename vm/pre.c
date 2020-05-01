@@ -61,7 +61,7 @@ MacroMap* macros(char* buf, int* err) {
             i++;
             if (buf[i] != '#') continue;
             i++;
-            if (buf[i] != '~') continue;
+            if (buf[i] != '!') continue;
             i++;
             int npos = i;
             int nlen = 0;

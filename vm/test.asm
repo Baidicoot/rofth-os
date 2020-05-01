@@ -1,5 +1,5 @@
 .boot
-#~interrupt int d0 d0
+#!interrupt int d0 d0
 lim r8 .printStr
 lim r9 d1125
 s16 r8 r9 d0
