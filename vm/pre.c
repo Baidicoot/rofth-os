@@ -20,6 +20,11 @@ MacroMap* allocMacro(char* defnp, int dlen, char* macrop, int nlen, MacroMap* ol
     tmp->next = old;
     memcpy(defn, defnp, dlen);
     defn[dlen] = 0;
+    for (int i = 0; i < dlen; i++) {
+        if(defn[i] == ';') {
+            defn[i] = '\n';
+        }
+    }
     memcpy(macro, macrop, nlen);
     macro[nlen] = 0;
     return tmp;
@@ -70,6 +75,7 @@ MacroMap* macros(char* buf, int* err) {
             int dpos = i;
             int dlen = 0;
             for (;buf[i] != '\n';i++) dlen++;
+
             macs = allocMacro(buf + dpos, dlen, buf + npos, nlen, macs);
         } else {
             i++;

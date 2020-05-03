@@ -366,7 +366,7 @@ void assemble(FILE* in, FILE* out, int* err) {
                 break;
             }
             readc = (char)read;
-            if (readc != '\n') {
+            if (!(readc == '\n' || isspace(readc))) { // parse extra lines/whitespace
                 break;
             }
         }
