@@ -115,6 +115,11 @@ void run() {
             printf("FATAL: INSTRUCTION OVERFLOW\n");
             return;
         }
+
+        #ifdef DEBUG
+        printf("%i:\n", pc);
+        #endif
+
         switch (op)
         {
         case LIM: {
@@ -125,17 +130,17 @@ void run() {
         }
         
         case LD8: {
-            uint8_t srcreg = mem[pc + 1];
-            uint8_t destreg = mem[pc + 2];
+            uint8_t reg = mem[pc + 1];
+            uint8_t addrreg = mem[pc + 2];
             int8_t offset = mem[pc+3];
 
             uint8_t prc = mem[PRC];
-            uint16_t addr = OFFSET(prc) + offset + reg16[srcreg];
+            uint16_t addr = OFFSET(prc) + offset + reg16[addrreg];
             if (isReadable(addr, prc)) {
                 #ifdef DEBUG
-                printf("loaded addr %i into r%i\n", addr, destreg);
+                printf("loaded addr %i into 8r%i\n", addr, reg);
                 #endif
-                reg8[destreg] = mem[addr];
+                reg8[reg] = mem[addr];
             } else {
                 MEMEXCEPT
             }
@@ -143,14 +148,17 @@ void run() {
         }
 
         case LD16: {
-            uint8_t srcreg = mem[pc + 1];
-            uint8_t destreg = mem[pc + 2];
+            uint8_t reg = mem[pc + 1];
+            uint8_t addrreg = mem[pc + 2];
             int8_t offset = mem[pc+3];
 
             uint8_t prc = mem[PRC];
-            uint16_t addr = OFFSET(prc) + offset + reg16[srcreg];
+            uint16_t addr = OFFSET(prc) + offset + reg16[addrreg];
             if (isReadable(addr, prc)) {
-                reg16[destreg] = *(uint16_t*)(mem + addr);
+                #ifdef DEBUG
+                printf("loaded addr %i into 16r%i\n", addr, reg);
+                #endif
+                reg16[reg] = *(uint16_t*)(mem + addr);
             } else {
                 MEMEXCEPT
             }
@@ -158,14 +166,17 @@ void run() {
         }
 
         case LD32: {
-            uint8_t srcreg = mem[pc + 1];
-            uint8_t destreg = mem[pc + 2];
+            uint8_t reg = mem[pc + 2];
+            uint8_t addrreg = mem[pc + 1];
             int8_t offset = mem[pc+3];
             
             uint8_t prc = mem[PRC];
-            uint16_t addr = OFFSET(prc) + offset + reg16[srcreg];
+            uint16_t addr = OFFSET(prc) + offset + reg16[addrreg];
             if (isReadable(addr, prc)) {
-                reg32[destreg] = *(uint32_t*)(mem + addr);
+                #ifdef DEBUG
+                printf("loaded addr %i into 16r%i\n", addr, reg);
+                #endif
+                reg32[reg] = *(uint32_t*)(mem + addr);
             } else {
                 MEMEXCEPT
             }
@@ -173,18 +184,18 @@ void run() {
         }
         
         case SV8: {
-            uint8_t srcreg = mem[pc + 1];
-            uint8_t destreg = mem[pc + 2];
+            uint8_t reg = mem[pc + 1];
+            uint8_t addrreg = mem[pc + 2];
             int8_t offset = mem[pc+3];
             
             uint8_t prc = mem[PRC];
-            uint16_t unaddr = offset + reg16[destreg];
+            uint16_t unaddr = offset + reg16[addrreg];
             uint16_t addr = OFFSET(prc) + unaddr;
             if (isWriteable(unaddr, addr, prc)) {
                 #ifdef DEBUG
-                printf("wrote: %i to: %i\n", reg8[srcreg], addr);
+                printf("wrote: 8x%i to: %i\n", reg8[reg], addr);
                 #endif
-                mem[addr] = reg8[srcreg];
+                mem[addr] = reg8[reg];
             } else {
                 MEMEXCEPT
             }
@@ -192,15 +203,18 @@ void run() {
         }
 
         case SV16: {
-            uint8_t srcreg = mem[pc + 1];
-            uint8_t destreg = mem[pc + 2];
+            uint8_t reg = mem[pc + 1];
+            uint8_t addrreg = mem[pc + 2];
             int8_t offset = mem[pc+3];
             
             uint8_t prc = mem[PRC];
-            uint16_t unaddr = offset + reg16[destreg];
+            uint16_t unaddr = offset + reg16[addrreg];
             uint16_t addr = OFFSET(prc) + unaddr;
             if (isWriteable(unaddr, addr, prc)) {
-                *(uint16_t*)(mem + addr) = reg16[srcreg];
+                #ifdef DEBUG
+                printf("wrote: 16x%i to: %i\n", reg16[reg], addr);
+                #endif
+                *(uint16_t*)(mem + addr) = reg16[reg];
             } else {
                 MEMEXCEPT
             }
@@ -208,15 +222,18 @@ void run() {
         }
 
         case SV32: {
-            uint8_t srcreg = mem[pc + 1];
-            uint8_t destreg = mem[pc + 2];
+            uint8_t reg = mem[pc + 1];
+            uint8_t addrreg = mem[pc + 2];
             int8_t offset = mem[pc+3];
             
             uint8_t prc = mem[PRC];
-            uint16_t unaddr = offset + reg16[destreg];
+            uint16_t unaddr = offset + reg16[addrreg];
             uint16_t addr = OFFSET(prc) + unaddr;
             if (isWriteable(unaddr, addr, prc)) {
-                *(uint32_t*)(mem + addr) = reg32[srcreg];
+                #ifdef DEBUG
+                printf("wrote: 32x%i to: %i\n", reg32[reg], addr);
+                #endif
+                *(uint32_t*)(mem + addr) = reg32[reg];
             } else {
                 MEMEXCEPT
             }
@@ -227,6 +244,9 @@ void run() {
             uint8_t destreg = mem[pc+1];
             uint8_t srcreg1 = mem[pc+2];
             uint8_t srcreg2 = mem[pc+3];
+            #ifdef DEBUG
+            printf("r%i & r%i -> r%i\n", srcreg1, srcreg2, destreg);
+            #endif
             reg16[destreg] = reg16[srcreg1] & reg16[srcreg2];
             break;
         }
@@ -235,6 +255,9 @@ void run() {
             uint8_t destreg = mem[pc+1];
             uint8_t srcreg1 = mem[pc+2];
             uint8_t srcreg2 = mem[pc+3];
+            #ifdef DEBUG
+            printf("r%i | r%i -> r%i\n", srcreg1, srcreg2, destreg);
+            #endif
             reg16[destreg] = reg16[srcreg1] | reg16[srcreg2];
             break;
         }
@@ -243,6 +266,9 @@ void run() {
             uint8_t destreg = mem[pc+1];
             uint8_t srcreg1 = mem[pc+2];
             uint8_t srcreg2 = mem[pc+3];
+            #ifdef DEBUG
+            printf("r%i ^ r%i -> r%i\n", srcreg1, srcreg2, destreg);
+            #endif
             reg16[destreg] = reg16[srcreg1] ^ reg16[srcreg2];
             break;
         }
@@ -251,6 +277,9 @@ void run() {
             uint8_t destreg = mem[pc+1];
             uint8_t srcreg1 = mem[pc+2];
             uint8_t srcreg2 = mem[pc+3];
+            #ifdef DEBUG
+            printf("~(r%i | r%i) -> r%i\n", srcreg1, srcreg2, destreg);
+            #endif
             reg16[destreg] = ~(reg16[srcreg1] | reg16[srcreg2]);
             break;
         }
@@ -259,6 +288,9 @@ void run() {
             uint8_t destreg = mem[pc+1];
             uint8_t srcreg1 = mem[pc+2];
             uint8_t srcreg2 = mem[pc+3];
+            #ifdef DEBUG
+            printf("r%i + r%i -> r%i\n", srcreg1, srcreg2, destreg);
+            #endif
             reg16[destreg] = reg16[srcreg1] + reg16[srcreg2];
             break;
         }
@@ -267,6 +299,9 @@ void run() {
             uint8_t destreg = mem[pc+1];
             uint8_t srcreg1 = mem[pc+2];
             uint8_t srcreg2 = mem[pc+3];
+            #ifdef DEBUG
+            printf("r%i + r%i + 1 -> r%i\n", srcreg1, srcreg2, destreg);
+            #endif
             reg16[destreg] = reg16[srcreg1] + reg16[srcreg2] + 1;
             break;
         }
@@ -275,6 +310,9 @@ void run() {
             uint8_t destreg = mem[pc+1];
             uint8_t srcreg1 = mem[pc+2];
             uint8_t srcreg2 = mem[pc+3];
+            #ifdef DEBUG
+            printf("r%i << r%i -> r%i\n", srcreg1, srcreg2, destreg);
+            #endif
             reg16[destreg] = reg16[srcreg1] << reg16[srcreg2];
             break;
         }
@@ -283,6 +321,9 @@ void run() {
             uint8_t destreg = mem[pc+1];
             uint8_t srcreg1 = mem[pc+2];
             uint8_t srcreg2 = mem[pc+3];
+            #ifdef DEBUG
+            printf("r%i >> r%i -> r%i\n", srcreg1, srcreg2, destreg);
+            #endif
             reg16[destreg] = reg16[srcreg1] >> reg16[srcreg2];
             break;
         }
@@ -296,6 +337,9 @@ void run() {
             uint16_t newpos = reg16[srcreg] - 4;
             reg16[destreg] = pc + offset + 4;
             if (isReadable(newpos, prc)) {
+                #ifdef DEBUG
+                printf("LJAL from %i to %i\n", reg16[destreg], newpos + 4);
+                #endif
                 pc = newpos;
             } else {
                 MEMEXCEPT
@@ -311,6 +355,9 @@ void run() {
                 uint8_t prc = mem[1120];
                 uint16_t newpos = pc + offset;
                 if (isReadable(newpos, prc)) {
+                    #ifdef DEBUG
+                    printf("r%i == r%i; pc <- %i\n", srcreg1, srcreg2, newpos);
+                    #endif
                     pc = newpos;
                 } else {
                     MEMEXCEPT
@@ -327,8 +374,10 @@ void run() {
                 uint8_t prc = mem[1120];
                 uint16_t newpos = pc + offset;
                 if (isReadable(newpos, prc)) {
+                    #ifdef DEBUG
+                    printf("r%i == r%i; pc <- %i\n", srcreg1, srcreg2, newpos);
+                    #endif
                     pc = newpos;
-                    //printf("branched to %i\n", newpos);
                 } else {
                     MEMEXCEPT
                 }
@@ -344,6 +393,9 @@ void run() {
                 uint8_t prc = mem[1120];
                 uint16_t newpos = pc + offset;
                 if (isReadable(newpos, prc)) {
+                    #ifdef DEBUG
+                    printf("r%i == r%i; pc <- %i\n", srcreg1, srcreg2, newpos);
+                    #endif
                     pc = newpos;
                 } else {
                     MEMEXCEPT
@@ -360,6 +412,9 @@ void run() {
                 uint8_t prc = mem[1120];
                 uint16_t newpos = pc + offset;
                 if (isReadable(newpos, prc)) {
+                    #ifdef DEBUG
+                    printf("r%i == r%i; pc <- %i\n", srcreg1, srcreg2, newpos);
+                    #endif
                     pc = newpos;
                 } else {
                     MEMEXCEPT
@@ -385,7 +440,9 @@ void run() {
 
         /* IO */
 
-        //printf("r0 %i, r1 %i, r2 %i\n", reg16[0], reg16[1], reg16[2]);
+        #ifdef DEBUG
+        printf("stack: ptr: %i, top: %i\n", reg16[0], *(uint16_t*)(mem + reg16[0]));
+        #endif
 
         // mem[1022] is the write flag
         if (mem[1022] != 0) {
